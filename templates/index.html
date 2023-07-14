@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF Query Interface</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background: #f5f5f5;
+        }
+
+        .chat-container {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: #fff;
+            margin-bottom: 20px;
+        }
+
+        .user-message {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .bot-message {
+            color: #333;
+            margin: 10px 0;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .btn-space {
+            margin-top: 20px; /* Increased button margin */
+        }
+
+        .file-list {
+            margin-top: 10px;
+        }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">PDF Query Interface</h1>
+        <p>Upload your PDFs, ask a question, and receive an answer processed from the combined text of the uploaded files.</p>
+        <div class="mt-5">
+            <label for="file-upload">Upload PDFs:</label>
+            <input type="file" class="form-control" id="file-upload" multiple>
+            <button type="button" class="btn btn-primary btn-space" id="upload-files">Upload Files</button>
+            <div class="file-list" id="file-list">
+                <!-- Uploaded files will be displayed here -->
+            </div>
+        </div>
+        <div class="mt-5">
+            <label for="question">Prompt:</label>
+            <input type="text" class="form-control" id="question" placeholder="Type your question here..." required>
+            <button type="button" class="btn btn-primary btn-space" id="submit-question">Submit Question</button>
+            <div class="loading">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+                <p>Please wait, processing your request...</p>
+            </div>
+        </div>
+        <div class="mt-5 chat-container" id="chat">
+            <!-- Chat history will be displayed here -->
+        </div>
+        <div class="mt-5">
+            <button type="button" class="btn btn-danger" id="cleanup">Cleanup Files</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // File upload handling
+            $("#upload-files").click(function() {
+                let files = $("#file-upload").prop('files');
+                let formData = new FormData();
+                for (let i = 0; i < files.length; i++) {
+                    formData.append('files', files[i]);
+                }
+
+                $(".loading").show();  // Show loading indicator while files are being uploaded
+
+                $.ajax({
+                    url: '/upload',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(data) {
+                        $(".loading").hide();  // Hide loading indicator when files are uploaded
+                        alert("Files uploaded successfully!");
+
+                        // Display uploaded files
+                        let fileList = $("#file-list");
+                        fileList.empty();
+                        data.forEach(function(filename) {
+                            fileList.append('<p>' + filename + '</p>');
+                        });
+                    }
+                });
+            });
+
+            // Question submission handling
+            $("#submit-question").click(function() {
+                let question = $("#question").val();
+                let chat = $("#chat");
+
+                if(question.trim() === "") {
+                    alert("Please type a question.");
+                    return;
+                }
+
+                // Display a loading indicator
+                $(".loading").show();
+
+                // Add user's question to chat history
+                chat.append('<div class="user-message">Prompt: ' + question + '</div>');
+
+                $.post("/ask", {
+                    messageText: question
+                }, function(data, status) {
+                    // Remove loading indicator and add bot's response to chat history
+                    $(".loading").hide();
+                    chat.append('<div class="bot-message">Response: ' + data + '</div>');
+                    chat.scrollTop(chat[0].scrollHeight); // Scroll to bottom
+                });
+            });
+
+            // Cleanup handling
+            $("#cleanup").click(function() {
+                $.post("/cleanup", function() {
+                    alert("Cleanup done");
+                });
+            });
+        });
+    </script>
+</body>
+</html>
